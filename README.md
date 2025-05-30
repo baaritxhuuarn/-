@@ -10,6 +10,11 @@
   - 从文件读取用户数据进行匹配
   - 返回登录状态（布尔值）
   - 简单错误提示（用户名不存在/密码错误）
+阶段交付物
+- 可运行的注册登录控制台程序
+- `users.txt`文件存储格式示例
+- 主菜单交互流程演示
+
 user.h 
 #ifndef USER_H
 #define USER_H
@@ -17,146 +22,182 @@ user.h
 #include <string>
 #include <fstream>
 #include <iostream>
-
 using namespace std;
 
-struct User {
+class User {
+private:
     string username;
     string password;
-};
 
-bool registerUser();
-bool loginUser();
-bool checkUsernameExists(const string& username);
+public:
+    User() {}
+    User(string un, string pwd) : username(un), password(pwd) {}
+
+    bool registerUser() {
+        if (checkUsernameExists(username)) {
+            cout << "错误：用户名 \"" << username << "\" 已存在！\n";
+            return false;
+        }
+        ofstream file("users.txt", ios::app);
+        if (file << username << ":" << password << endl) {
+            file.close();
+            return true;
+        }
+        cout << "错误：无法保存用户数据！\n";
+        return false;
+    }
+
+    bool loginUser() const {
+        ifstream file("users.txt");
+        string line, un, pwd;
+        while (getline(file, line)) {
+            if (line.find(username + ":") == 0) {
+                pwd = line.substr(username.length() + 1);
+                return pwd == password;
+            }
+        }
+        cout << "错误：用户名或密码错误！\n";
+        return false;
+    }
+
+    static bool checkUsernameExists(const string& un) {
+        ifstream file("users.txt");
+        string line;
+        while (getline(file, line)) {
+            if (line.find(un + ":") == 0) return true;
+        }
+        return false;
+    }
+};
 
 #endif // USER_H
 ————————————————————————————————————————————————————————
+menu.h 
+#ifndef MENU_H
+#define MENU_H
 
-user.cpp 
 #include "user.h"
+using namespace std;
 
-bool checkUsernameExists(const string& username) {
-    ifstream file("users.txt");
-    if (!file.is_open()) return false;
+class Menu {
+private:
+    bool isLoggedIn;
+    string currentUser;
 
-    string line;
-    while (getline(file, line)) {
-        size_t pos = line.find(':');
-        if (pos != string::npos && line.substr(0, pos) == username) {
-            file.close();
-            return true;
-        }
+public:
+    Menu() : isLoggedIn(false), currentUser("") {}
+
+    void run() {
+        cout << "===== 二手交易平台 v1.0 =====" << endl;
+        while (true) showMainMenu(), handleChoice();
     }
-    file.close();
-    return false;
-}
 
-bool registerUser() {
-    string username, password;
+private:
+    void showMainMenu() const {
+        cout << "\n" << string(25, '=') << endl;
+        if (!isLoggedIn) {
+            cout << "1. 注册新用户\n2. 用户登录\n3. 浏览商品\n4. 退出系统" << endl;
+        }
+        else {
+            cout << "1. 发布商品\n2. 我的商品\n3. 浏览商品\n4. 退出登录\n5. 退出系统" << endl;
+            cout << "当前用户：" << currentUser << endl;
+        }
+        cout << "请选择操作：";
+    }
 
-    // 循环处理用户名输入，直到有效
-    while (true) {
-        cout << "请输入用户名: ";
-        cin >> username;
+    void handleChoice() {
+        int choice;
+        cin >> choice;
 
-        if (checkUsernameExists(username)) {
-            char choice;
-            cout << "错误：用户名已存在！" << endl;
-            cout << "选择：1. 重新注册  2. 返回主菜单" << endl;
-
-            while (true) {
-                cin >> choice;
-                if (choice == '1') break;        // 重新输入用户名
-                else if (choice == '2') return false;  // 返回主菜单
-                else cout << "无效选择！请输入 1 或 2：";
+        if (!isLoggedIn) {
+            switch (choice) {
+            case 1: registerUser(); break;
+            case 2: loginUser(); break;
+            case 3: browseGoods(); break; // 新增浏览功能（占位）
+            case 4: exitSystem(); return;
+            default: invalidInput();
             }
         }
         else {
-            break;  // 用户名有效，跳出循环
+            switch (choice) {
+            case 1: publishGoods(); break; // 发布功能（占位）
+            case 2: myGoods(); break;      // 我的商品（占位）
+            case 3: browseGoods(); break;  // 浏览功能（保留）
+            case 4: logout(); break;
+            case 5: exitSystem(); return;
+            default: invalidInput();
+            }
         }
     }
 
-    // 读取密码
-    cout << "请输入密码: ";
-    cin >> password;
-
-    // 保存到文件
-    ofstream file("users.txt", ios::app);
-    if (file.is_open()) {
-        file << username << ":" << password << endl;
-        file.close();
-        cout << "注册成功！" << endl;
-        return true;
-    }
-    else {
-        cout << "错误：无法创建用户文件！" << endl;
-        return false;
-    }
-}
-
-bool loginUser() {
-    string username, password;
-
-    cout << "请输入用户名: ";
-    cin >> username;
-    cout << "请输入密码: ";
-    cin >> password;
-
-    ifstream file("users.txt");
-    if (!file.is_open()) {
-        cout << "错误：用户文件不存在！" << endl;
-        return false;
+    // 新增占位函数（阶段二实现）
+    void browseGoods() const {
+        cout << "【浏览商品】功能开发中，可查看所有发布的商品\n";
+        // 阶段二从goods.txt读取并显示
     }
 
-    string line;
-    while (getline(file, line)) {
-        size_t pos = line.find(':');
-        if (pos != string::npos &&
-            line.substr(0, pos) == username &&
-            line.substr(pos + 1) == password) {
-            file.close();
-            cout << "登录成功！" << endl;
-            return true;
+    void publishGoods() const {
+        cout << "【发布商品】请输入商品信息（阶段二实现）\n";
+    }
+
+    void myGoods() const {
+        cout << "【我的商品】查看您发布的所有商品（阶段二实现）\n";
+    }
+
+    // menu.h中预留接口
+    void searchGoods() const {
+        cout << "【搜索商品】请输入关键词（阶段二实现）\n";
+        // 阶段二添加：
+        // string keyword; cin >> keyword;
+        // 从goods.txt中搜索含keyword的商品
+    }
+
+    void registerUser() {
+        string un, pwd;
+        cout << "用户名："; cin >> un;
+        cout << "密码："; cin >> pwd;
+        User user(un, pwd);
+        if (user.registerUser()) cout << "注册成功，请登录！\n";
+    }
+
+    void loginUser() {
+        string un, pwd;
+        cout << "用户名："; cin >> un;
+        cout << "密码："; cin >> pwd;
+        User user(un, pwd);
+        if (user.loginUser()) {
+            isLoggedIn = true;
+            currentUser = un;
+            cout << "登录成功！\n";
         }
     }
-    file.close();
-    cout << "错误：用户名或密码错误！" << endl;
-    return false;
-}
-————————————————————————————————————————————————————————
+
+    void logout() {
+        isLoggedIn = false;
+        currentUser = "";
+        cout << "已退出登录！\n";
+    }
+
+    void exitSystem() {
+        cout << "\n感谢使用，再见！\n";
+        exit(0);
+    }
+
+    void invalidInput() {
+        cout << "错误：请输入有效数字！\n";
+        cin.clear();
+        cin.ignore(1000, '\n');
+    }
+};
+
+#endif // MENU_H
+
+—————————————————————————————————————————————————————————
 secondhand.cpp （main函数）
-#include "user.h"
+#include "menu.h"
 
 int main() {
-    cout << "===== 校园二手交易平台 =====" << endl;
-
-    while (true) {
-        char choice;
-        cout << "\n主菜单：" << endl;
-        cout << "1. 注册" << endl;
-        cout << "2. 登录" << endl;
-        cout << "3. 退出" << endl;
-        cout << "请选择：";
-        cin >> choice;
-
-        switch (choice) {
-        case '1':
-            registerUser();
-            break;
-        case '2':
-            if (loginUser()) {
-                cout << "欢迎使用校园二手交易平台！" << endl;
-                // 这里可以添加登录后的功能代码
-                return 0;  // 登录成功后退出程序，也可改为循环
-            }
-            break;
-        case '3':
-            cout << "感谢使用，再见！" << endl;
-            return 0;
-        default:
-            cout << "无效选择，请重新输入！" << endl;
-        }
-    }
-
+    Menu menu;
+    menu.run();
     return 0;
 }
